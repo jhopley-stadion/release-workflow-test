@@ -37,8 +37,11 @@ jobs:
         run: |
           # Extract the source branch from the GitHub event context
           branch_name=$(jq -r .head_commit.message < "$GITHUB_EVENT_PATH" | grep -oP 'Merge pull request #[0-9]+ from \K\S+')
-          echo "Branch name: $branch_name"
 
+          # Strip any prefixes from the branch name, keeping only the last part (release/v* or hotfix/*)
+          branch_name=$(basename "$branch_name")
+
+          echo "Branch name: $branch_name"
           echo "branch_name=$branch_name" >> $GITHUB_ENV  # Save the source branch to an environment variable
 
       # Step to determine the next version based on the merged branch
