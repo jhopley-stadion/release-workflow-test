@@ -30,7 +30,18 @@ jobs:
           latest_tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' || echo "1.0.0")
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV  # Saves the latest tag to an environment variable
 
-      # Step to determine the next version based on the branch name
+      # Step to get the branch that was merged into main
+      # This extracts the branch from the GitHub event that triggered the workflow
+      - name: Get source branch
+        id: get_source_branch
+        run: |
+          # Extract the source branch from the GitHub event context
+          branch_name=$(jq -r .head_commit.message < "$GITHUB_EVENT_PATH" | grep -oP 'Merge pull request #[0-9]+ from \K\S+')
+          echo "Branch name: $branch_name"
+
+          echo "branch_name=$branch_name" >> $GITHUB_ENV  # Save the source branch to an environment variable
+
+      # Step to determine the next version based on the merged branch
       - name: Determine next version
         id: determine_version
         env:
@@ -39,28 +50,29 @@ jobs:
           # Extract major, minor, and patch numbers from the latest tag
           IFS='.' read -r major minor patch <<< "${{ env.latest_tag }}"
 
-          # Get the current branch name
-          branch_name=$(git rev-parse --abbrev-ref HEAD)
+          # Get the branch name from the source branch (merged into main)
+          branch_name="${{ env.branch_name }}"
           echo "Branch name: $branch_name"
 
-          # Determine version based on the branch name
+          # Check if the branch is a release branch
           if [[ "$branch_name" == release/v* ]]; then
             # Extract version number from the release branch name
             version=${branch_name#release/v}
-            # Validate the version format (x.y.z)
             if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
               new_tag=$version  # Set the new version tag from the branch name
             else
               echo "Branch name does not contain a valid version number: $branch_name"
-              exit 1  # Exit with an error if the version format is invalid
+              exit 1
             fi
+
+          # Check if the branch is a hotfix branch
           elif [[ "$branch_name" == hotfix/* ]]; then
             # For hotfix branches, increment the minor version
             minor=$((minor + 1))
             new_tag="$major.$minor.0"
           else
             echo "Branch name does not match expected patterns"
-            exit 1  # Exit with an error if the branch name does not match expected patterns
+            exit 1
           fi
 
           echo "New version tag: $new_tag"
