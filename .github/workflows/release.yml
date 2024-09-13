@@ -5,6 +5,9 @@ on:
     branches:
       - main  # This workflow is triggered when there is a push to the main branch
 
+permissions:
+  contents: write  # Grant permission to create releases and push tags
+
 jobs:
   create-release:
     runs-on: ubuntu-latest  # The job runs on the latest version of Ubuntu
@@ -19,7 +22,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Passes the GitHub token for CLI authentication
         run: |
-          gh auth status  # Authenticates the GitHub CLI with the provided token
+          echo "$GITHUB_TOKEN" | gh auth login --with-token
 
       # Step to get the latest release tag or default to "1.0.0" if none exist
       - name: Get latest version
@@ -95,7 +98,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Uses the token to generate release notes
         run: |
           # Generate release notes by listing commits between the latest tag and the main branch
-          release_notes=$(gh api repos/:owner/:repo/compare/${{ env.latest_tag }}...main --jq '.commits[].commit.message' | sed 's/^/* /')
+          release_notes=$(gh api repos/${{ github.repository }}/compare/${{ env.latest_tag }}...main --jq '.commits[].commit.message' | sed 's/^/* /')
           echo "${release_notes}" > release_notes.txt  # Save release notes to a file
           echo "release_notes_file=release_notes.txt" >> $GITHUB_ENV  # Save the filename to an environment variable
 
