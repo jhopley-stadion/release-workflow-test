@@ -1,0 +1,93 @@
+name: Create Release
+
+on:
+  push:
+    branches:
+      - main  # This workflow is triggered when there is a push to the main branch
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest  # The job runs on the latest version of Ubuntu
+
+    steps:
+      # Step to check out the repository to access the code
+      - name: Checkout repository
+        uses: actions/checkout@v3  # Checks out the code from the repository
+
+      # Step to authenticate the GitHub CLI with the GitHub token
+      - name: Set up GitHub CLI with Authentication
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Passes the GitHub token for CLI authentication
+        run: |
+          gh auth status  # Authenticates the GitHub CLI with the provided token
+
+      # Step to get the latest release tag or default to "1.0.0" if none exist
+      - name: Get latest version
+        id: get_latest_version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Uses the token to fetch release information
+        run: |
+          latest_tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' || echo "1.0.0")
+          echo "latest_tag=$latest_tag" >> $GITHUB_ENV  # Saves the latest tag to an environment variable
+
+      # Step to determine the next version based on the branch name
+      - name: Determine next version
+        id: determine_version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Uses the token for GitHub API access
+        run: |
+          # Extract major, minor, and patch numbers from the latest tag
+          IFS='.' read -r major minor patch <<< "${{ env.latest_tag }}"
+
+          # Get the current branch name
+          branch_name=$(git rev-parse --abbrev-ref HEAD)
+          echo "Branch name: $branch_name"
+
+          # Determine version based on the branch name
+          if [[ "$branch_name" == release/v* ]]; then
+            # Extract version number from the release branch name
+            version=${branch_name#release/v}
+            # Validate the version format (x.y.z)
+            if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              new_tag=$version  # Set the new version tag from the branch name
+            else
+              echo "Branch name does not contain a valid version number: $branch_name"
+              exit 1  # Exit with an error if the version format is invalid
+            fi
+          elif [[ "$branch_name" == hotfix/* ]]; then
+            # For hotfix branches, increment the minor version
+            minor=$((minor + 1))
+            new_tag="$major.$minor.0"
+          else
+            echo "Branch name does not match expected patterns"
+            exit 1  # Exit with an error if the branch name does not match expected patterns
+          fi
+
+          echo "New version tag: $new_tag"
+          echo "new_tag=$new_tag" >> $GITHUB_ENV  # Save the new tag to an environment variable
+
+      # Step to create and push the new version tag
+      - name: Tag the new version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Uses the token to create a release
+        run: |
+          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes ""
+
+      # Step to generate release notes based on commits since the last tag
+      - name: Generate release notes
+        id: generate_release_notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Uses the token to generate release notes
+        run: |
+          # Generate release notes by listing commits between the latest tag and the main branch
+          release_notes=$(gh api repos/:owner/:repo/compare/${{ env.latest_tag }}...main --jq '.commits[].commit.message' | sed 's/^/* /')
+          echo "${release_notes}" > release_notes.txt  # Save release notes to a file
+          echo "release_notes_file=release_notes.txt" >> $GITHUB_ENV  # Save the filename to an environment variable
+
+      # Step to update the GitHub release with the generated notes
+      - name: Update GitHub Release with Notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Uses the token to update the release
+        run: |
+          release_notes=$(cat ${{ env.release_notes_file }})
+          gh release edit ${{ env.new_tag }} --notes "$release_notes"  # Update the release with the notes
