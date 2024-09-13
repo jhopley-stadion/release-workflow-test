@@ -20,9 +20,9 @@ jobs:
       # Step to authenticate the GitHub CLI with the GitHub token
       - name: Set up GitHub CLI with Authentication
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Passes the GitHub token for CLI authentication
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "$GITHUB_TOKEN" | gh auth login --with-token
+          gh auth login --with-token <<< "${GITHUB_TOKEN}"
 
       # Step to get the latest release tag or default to "1.0.0" if none exist
       - name: Get latest version
