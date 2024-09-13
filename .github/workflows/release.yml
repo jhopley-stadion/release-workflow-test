@@ -31,30 +31,18 @@ jobs:
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV  # Saves the latest tag to an environment variable
 
       # Step to get the branch that was merged into main
-      # This extracts the branch from the GitHub event that triggered the workflow
       - name: Get source branch
         id: get_source_branch
         run: |
           # Extract the source branch from the GitHub event context
           branch_name=$(jq -r .head_commit.message < "$GITHUB_EVENT_PATH" | grep -oP 'Merge pull request #[0-9]+ from \K\S+')
-          echo "Branch name (raw): $branch_name"  # Debug: Print the raw branch name
+          echo "Branch name (raw): $branch_name"
 
-          # Save the branch name to an environment variable for further steps
-          echo "branch_name=$branch_name" >> $GITHUB_ENV
+          # Strip any prefix (like repo/owner)
+          branch_name=$(echo "$branch_name" | sed 's/^[^/]*\///')
+          echo "Stripped Branch name: $branch_name"
 
-      # Debug step to see if the branch name matches release or hotfix
-      - name: Debug branch name matching
-        run: |
-          branch_name="${{ env.branch_name }}"
-          echo "Branch name for matching: $branch_name"
-
-          if [[ "$branch_name" == release/v* ]]; then
-            echo "This is a release branch"
-          elif [[ "$branch_name" == hotfix/* ]]; then
-            echo "This is a hotfix branch"
-          else
-            echo "Branch name does not match expected patterns"
-          fi
+          echo "branch_name=$branch_name" >> $GITHUB_ENV  # Save the branch name to an environment variable
 
       # Step to determine the next version based on the merged branch
       - name: Determine next version
