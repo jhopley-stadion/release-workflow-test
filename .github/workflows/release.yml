@@ -30,14 +30,9 @@ jobs:
       - name: Determine branch type
         id: determine_branch_type
         run: |
-          # Print GITHUB_REF for debugging
           echo "GITHUB_REF=$GITHUB_REF"
-          
-          # Extract branch name from GITHUB_REF
           branch_name=${GITHUB_REF#refs/heads/}
           echo "Branch name: $branch_name"
-          
-          # Determine branch type based on branch name
           if [[ "$branch_name" == release/* ]]; then
             branch_type="release"
           elif [[ "$branch_name" == hotfix/* ]]; then
@@ -48,7 +43,6 @@ jobs:
             echo "Branch does not match expected patterns"
             exit 1
           fi
-          
           echo "branch_type=$branch_type" >> $GITHUB_ENV
 
       - name: Increment version
@@ -73,9 +67,10 @@ jobs:
       - name: Tag the new version
         if: env.branch_type != 'main'  # Skip tagging for main branch
         run: |
-          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes ""
+          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main
 
       - name: Generate release notes using GitHub's auto-generated notes
+        if: env.new_tag != ''  # Only run if there's a new tag
         id: generate_release_notes
         run: |
           gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --generate-notes --target main
