@@ -3,7 +3,8 @@ name: Create Release
 on:
   push:
     branches:
-      - main  # Trigger on push to main
+      - 'release/*'  # Trigger on release branches
+      - 'hotfix/*'  # Trigger on hotfix branches
 
 permissions:
   contents: write  # Allow the workflow to push tags and create releases
@@ -27,8 +28,8 @@ jobs:
           latest_tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' || echo "1.0.0")
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
 
-      - name: Get branch type
-        id: get_branch_type
+      - name: Determine branch type
+        id: determine_branch_type
         run: |
           branch_name=$(echo "${GITHUB_REF#refs/heads/}")
           echo "Branch name: $branch_name"
