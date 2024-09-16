@@ -66,7 +66,6 @@ jobs:
           echo "new_tag=$new_tag" >> $GITHUB_ENV
 
       - name: Draft Release Notes
-        id: draft_release_notes
         uses: release-drafter/release-drafter@v5
         with:
           config-name: release-drafter.yml
@@ -76,17 +75,11 @@ jobs:
       - name: Wait for Release Notes to be Drafted
         run: sleep 30 # Adjust the sleep time if needed to ensure notes are drafted
 
-      - name: Store Release Notes
-        id: store_release_notes
-        run: |
-          echo "Storing release notes..."
-          notes=$(gh release view ${{ env.new_tag }} --json body --jq '.body' 2>/dev/null || echo "No notes found")
-          echo "release_notes=$notes" >> $GITHUB_ENV
-
       - name: Create Release
         run: |
           echo "Creating release..."
-          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes "${{ env.release_notes }}"
+          notes=$(gh release view ${{ env.new_tag }} --json body --jq '.body' 2>/dev/null || echo "No notes found")
+          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes "$notes"
           echo "Release created: ${{ env.new_tag }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
