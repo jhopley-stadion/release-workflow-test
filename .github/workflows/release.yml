@@ -6,7 +6,7 @@ on:
       - main  # Trigger on push to main
 
 permissions:
-  contents: write  # Allow the workflow to push tags, rebase, and create releases
+  contents: write  # Allow the workflow to push tags and create releases
 
 jobs:
   create-release:
@@ -14,13 +14,12 @@ jobs:
 
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      JIRA_URL: 'https://your-jira-instance.atlassian.net/browse/'  # Update this with your JIRA URL
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Fetch all history to ensure rebase works correctly
+          fetch-depth: 0  # Fetch all history to ensure correct versioning and rebase
 
       - name: Get latest version
         id: get_latest_version
@@ -31,8 +30,8 @@ jobs:
       - name: Get branch type
         id: get_branch_type
         run: |
-          branch_name=$(jq -r .head_commit.message < "$GITHUB_EVENT_PATH" | grep -oP 'Merge pull request #[0-9]+ from \K\S+')
-          branch_name=$(echo "$branch_name" | sed 's/^[^/]*\///')
+          branch_name=$(echo "${GITHUB_REF#refs/heads/}")
+          echo "Branch name: $branch_name"
 
           if [[ "$branch_name" == release/* ]]; then
             branch_type="release"
@@ -63,40 +62,10 @@ jobs:
 
           echo "new_tag=$new_tag" >> $GITHUB_ENV
 
-      - name: Tag the new version
+      - name: Create release with auto-generated notes
         run: |
-          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes ""
-
-      - name: Generate formatted release notes
-        id: generate_release_notes
-        run: |
-          # Get commit messages since the last release
-          raw_commit_messages=$(gh api repos/${{ github.repository }}/compare/${{ env.latest_tag }}...main --jq '.commits[].commit.message' || echo "No commits found")
-          echo "Raw commit messages:"
-          echo "$raw_commit_messages"
-          
-          # Add JIRA ticket links to commit messages
-          jira_pattern='[A-Z][A-Z0-9]+-[0-9]+'  # Adjusted JIRA ticket pattern
-          jira_url="${{ env.JIRA_URL }}"
-
-          # Replace JIRA ticket references with Markdown links
-          release_notes=$(echo "$raw_commit_messages" | sed -E "s/($jira_pattern)/[\1]($jira_url\1)/g" | sed 's/^/* /')
-
-          # Add a title to the release notes and ensure the formatting is correct
-          formatted_notes="## Commit History Since Last Release\n\n$release_notes"
-
-          # Ensure newlines are preserved and properly formatted for GitHub release notes
-          formatted_notes=$(echo -e "$formatted_notes")
-
-          echo "${formatted_notes}" > release_notes.txt
-          echo "release_notes_file=release_notes.txt" >> $GITHUB_ENV
-
-      - name: Update GitHub Release with Notes
-        run: |
-          release_notes=$(cat ${{ env.release_notes_file }})
-          echo "Formatted release notes:"
-          echo "$release_notes"
-          gh release edit ${{ env.new_tag }} --generate-notes
+          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --generate-notes
+          echo "Release created with auto-generated notes."
 
       - name: Rebase develop with main for hotfixes
         if: env.branch_type == 'hotfix'  # Only do this for hotfixes
