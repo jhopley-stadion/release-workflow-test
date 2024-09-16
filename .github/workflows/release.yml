@@ -72,6 +72,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Debug Drafted Release Notes
+        run: |
+          echo "Drafted release notes:"
+          gh release view --json body --jq '.body' ${{ env.new_tag }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create Release
         run: |
           echo "Creating release..."
