@@ -27,6 +27,7 @@ jobs:
           # Fetch the latest tag from the releases
           latest_tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' || echo "1.0.0")
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
+
       - name: Get branch type
         id: get_branch_type
         run: |
@@ -43,6 +44,7 @@ jobs:
             exit 1
           fi
           echo "branch_type=$branch_type" >> $GITHUB_ENV
+
       - name: Increment version
         id: increment_version
         run: |
@@ -59,20 +61,19 @@ jobs:
             exit 1
           fi
           echo "new_tag=$new_tag" >> $GITHUB_ENV
+
       - name: Tag the new version
         run: |
           # Create a new release tag
           gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes ""
+
       - name: Generate and apply release notes
         id: generate_release_notes
         run: |
           # Use GitHub CLI to generate release notes for the new tag
           release_notes=$(gh release view ${{ env.new_tag }} --json body --jq '.body')
           echo "release_notes=$release_notes" >> $GITHUB_ENV
-      - name: Update GitHub Release with Notes
-        run: |
-          # Update the release with generated notes
-          gh release edit ${{ env.new_tag }} --notes "$release_notes"
+
       - name: Rebase develop with main for hotfixes
         if: env.branch_type == 'hotfix'  # Only do this for hotfixes
         run: |
