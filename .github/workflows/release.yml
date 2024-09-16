@@ -3,10 +3,12 @@ name: Create Release
 on:
   push:
     branches:
-      - main  # Trigger on push to main
+      # Trigger on push to main
+      - main  
 
 permissions:
-  contents: write  # Allow the workflow to push tags and create releases
+  # Allow the workflow to push tags and create releases
+  contents: write  
 
 jobs:
   create-release:
