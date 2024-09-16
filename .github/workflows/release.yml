@@ -14,7 +14,7 @@ jobs:
 
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      JIRA_URL: 'https://stadion.atlassian.net/browse/'  # Update this with your JIRA URL
+      JIRA_URL: 'https://your-jira-instance.atlassian.net/browse/'  # Update this with your JIRA URL
 
     steps:
       - name: Checkout repository
@@ -71,7 +71,7 @@ jobs:
         id: generate_release_notes
         run: |
           # Get commit messages since the last release
-          release_notes=$(gh api repos/${{ github.repository }}/compare/${{ env.latest_tag }}...main --jq '.commits[].commit.message' | grep -v 'Merge pull request' | sed '/^\s*$/d')
+          release_notes=$(gh api repos/${{ github.repository }}/compare/${{ env.latest_tag }}...main --jq '.commits[].commit.message' | sed '/^\s*$/d')
 
           # Add JIRA ticket links to commit messages
           jira_pattern='[A-Z]+-[0-9]+'  # JIRA ticket pattern (e.g., PROJ-123)
