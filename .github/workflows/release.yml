@@ -73,16 +73,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Wait for Release Notes to be Drafted
-        run: sleep 30 # Adjust the sleep time if needed to ensure notes are drafted
+        run: sleep 30
+
+      - name: Fetch Drafted Release Notes
+        id: fetch_notes
+        run: |
+          draft_notes=$(gh release view ${{ env.new_tag }} --json body --jq '.body' 2>/dev/null || echo "No notes found")
+          echo "Drafted Notes: $draft_notes"
+          echo "draft_notes=$draft_notes" >> $GITHUB_ENV
 
       - name: Create Release
         run: |
           echo "Creating release..."
-          notes=$(gh release view ${{ env.new_tag }} --json body --jq '.body' 2>/dev/null || echo "No notes found")
-          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes "$notes"
+          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes "${{ env.draft_notes }}"
           echo "Release created: ${{ env.new_tag }}"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Rebase develop with main for hotfixes
         if: env.branch_type == 'hotfix'
