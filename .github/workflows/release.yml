@@ -3,7 +3,7 @@ name: Create Release
 on:
   push:
     branches:
-      - main  # Trigger on push to main
+      - main
 
 permissions:
   contents: write  # Allow the workflow to push tags, rebase, and create releases
@@ -21,23 +21,23 @@ jobs:
         with:
           fetch-depth: 0  # Fetch all history to ensure rebase works correctly
 
+      # Get the latest release tag
       - name: Get latest version
         id: get_latest_version
         run: |
           latest_tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' || echo "1.0.0")
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
 
+      # Determine branch type (release or hotfix)
       - name: Determine Branch Type
         id: get_branch_type
         run: |
-          # Check if the event is a pull request
-          if [[ -f "$GITHUB_EVENT_PATH" ]]; then
-            branch_name=$(jq -r .pull_request.head.ref < "$GITHUB_EVENT_PATH")
-            echo "Branch name from PR: $branch_name"
-          else
-            branch_name=${GITHUB_REF#refs/heads/}
-            echo "Branch name from push: $branch_name"
-          fi
+          # Print GITHUB_REF for debugging
+          echo "GITHUB_REF=$GITHUB_REF"
+
+          # Extract branch name from GITHUB_REF
+          branch_name=${GITHUB_REF#refs/heads/}
+          echo "Branch name: $branch_name"
 
           # Determine branch type based on branch name
           if [[ "$branch_name" == release/* ]]; then
@@ -51,6 +51,7 @@ jobs:
 
           echo "branch_type=$branch_type" >> $GITHUB_ENV
 
+      # Set the next version based on the branch type
       - name: Increment version
         id: increment_version
         run: |
@@ -69,10 +70,20 @@ jobs:
 
           echo "new_tag=$new_tag" >> $GITHUB_ENV
 
-      - name: Create GitHub Release
-        run: |
-          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --generate-notes --target main
+      # Draft the release notes using Release Drafter
+      - name: Draft Release Notes
+        uses: release-drafter/release-drafter@v5
+        with:
+          config-name: .github/release-drafter.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Create the new tag and GitHub release with auto-generated notes
+      - name: Create Release
+        run: |
+          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --generate-notes
+
+      # Rebase develop with main (only for hotfixes)
       - name: Rebase develop with main for hotfixes
         if: env.branch_type == 'hotfix'  # Only do this for hotfixes
         run: |
