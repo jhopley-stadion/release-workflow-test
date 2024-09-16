@@ -27,32 +27,32 @@ jobs:
           latest_tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' || echo "1.0.0")
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
 
-      - name: Determine Branch Type
-        id: get_branch_type
+      - name: Determine branch type
+        id: determine_branch_type
         run: |
           # Print GITHUB_REF for debugging
           echo "GITHUB_REF=$GITHUB_REF"
-
+          
           # Extract branch name from GITHUB_REF
           branch_name=${GITHUB_REF#refs/heads/}
           echo "Branch name: $branch_name"
-
+          
           # Determine branch type based on branch name
           if [[ "$branch_name" == release/* ]]; then
             branch_type="release"
           elif [[ "$branch_name" == hotfix/* ]]; then
             branch_type="hotfix"
+          elif [[ "$branch_name" == "main" ]]; then
+            branch_type="main"
           else
             echo "Branch does not match expected patterns"
             exit 1
           fi
-
+          
           echo "branch_type=$branch_type" >> $GITHUB_ENV
-        shell: /usr/bin/bash -e {0}
-        env:
-          latest_tag: 1.0.0
 
       - name: Increment version
+        if: env.branch_type != 'main'  # Skip version increment for main branch
         id: increment_version
         run: |
           IFS='.' read -r major minor patch <<< "${{ env.latest_tag }}"
@@ -71,23 +71,21 @@ jobs:
           echo "new_tag=$new_tag" >> $GITHUB_ENV
 
       - name: Tag the new version
+        if: env.branch_type != 'main'  # Skip tagging for main branch
         run: |
           gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes ""
 
-      - name: Generate formatted release notes
+      - name: Generate release notes using GitHub's auto-generated notes
         id: generate_release_notes
         run: |
-          # Generate release notes using GitHub CLI
-          gh release view ${{ env.new_tag }} --json description --jq '.description' > release_notes.txt
-          echo "release_notes_file=release_notes.txt" >> $GITHUB_ENV
-
-      - name: Update GitHub Release with Notes
-        run: |
-          release_notes=$(cat ${{ env.release_notes_file }})
-          gh release edit ${{ env.new_tag }} --notes "$release_notes"
+          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --generate-notes --target main
 
       - name: Rebase develop with main for hotfixes
         if: env.branch_type == 'hotfix'  # Only do this for hotfixes
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
+          git fetch origin develop
+          git checkout develop
+          git rebase origin/main
+          git push origin develop --force-with-lease  # Use --force-with-lease to safely force push
