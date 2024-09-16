@@ -76,7 +76,7 @@ jobs:
           echo "$raw_commit_messages"
           
           # Add JIRA ticket links to commit messages
-          jira_pattern='[A-Za-z0-9]+-[0-9]+'  # Adjusted JIRA ticket pattern
+          jira_pattern='[A-Z][A-Z0-9]+-[0-9]+'  # Adjusted JIRA ticket pattern
           jira_url="${{ env.JIRA_URL }}"
 
           # Replace JIRA ticket references with Markdown links
