@@ -1,7 +1,7 @@
 name: Create Release
 
 on:
-  push:
+  pull_request:
     branches:
       - main
 
@@ -28,17 +28,18 @@ jobs:
           latest_tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' || echo "1.0.0")
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
 
-      # Determine branch type (release or hotfix)
+      # Get the branch name from the pull request
       - name: Determine Branch Type
         id: get_branch_type
         run: |
           # Print GITHUB_REF for debugging
           echo "GITHUB_REF=$GITHUB_REF"
-
-          # Extract branch name from GITHUB_REF
-          branch_name=${GITHUB_REF#refs/heads/}
+          echo "GITHUB_EVENT_PATH=$GITHUB_EVENT_PATH"
+          
+          # Extract branch name from the pull request event
+          branch_name=$(jq -r .pull_request.head.ref < "$GITHUB_EVENT_PATH")
           echo "Branch name: $branch_name"
-
+          
           # Determine branch type based on branch name
           if [[ "$branch_name" == release/* ]]; then
             branch_type="release"
@@ -48,8 +49,9 @@ jobs:
             echo "Branch does not match expected patterns"
             exit 1
           fi
-
+          
           echo "branch_type=$branch_type" >> $GITHUB_ENV
+        shell: /usr/bin/bash -e {0}
 
       # Set the next version based on the branch type
       - name: Increment version
