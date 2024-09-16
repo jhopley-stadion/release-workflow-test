@@ -12,7 +12,6 @@ jobs:
   create-release:
     runs-on: ubuntu-latest
 
-    # Set GH_TOKEN to GITHUB_TOKEN for GitHub CLI authentication
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -27,40 +26,45 @@ jobs:
           latest_tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' || echo "1.0.0")
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
 
-      # Get the source branch from the GitHub event context
-      - name: Get source branch
-        id: get_source_branch
+      # Get the current branch type (release or hotfix)
+      - name: Get branch type
+        id: get_branch_type
         run: |
           branch_name=$(jq -r .head_commit.message < "$GITHUB_EVENT_PATH" | grep -oP 'Merge pull request #[0-9]+ from \K\S+')
           branch_name=$(echo "$branch_name" | sed 's/^[^/]*\///')
-          echo "branch_name=$branch_name" >> $GITHUB_ENV
 
-      # Determine the next version based on the branch name
-      - name: Determine next version
-        id: determine_version
-        run: |
-          IFS='.' read -r major minor patch <<< "${{ env.latest_tag }}"
-          branch_name="${{ env.branch_name }}"
-
-          if [[ "$branch_name" == release/v* ]]; then
-            version=${branch_name#release/v}
-            if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              new_tag=$version
-            else
-              echo "Invalid version format in branch name: $branch_name"
-              exit 1
-            fi
+          # Identify if it's a release or hotfix branch
+          if [[ "$branch_name" == release/* ]]; then
+            branch_type="release"
           elif [[ "$branch_name" == hotfix/* ]]; then
-            minor=$((minor + 1))
-            new_tag="$major.$minor.0"
+            branch_type="hotfix"
           else
             echo "Branch does not match expected patterns"
             exit 1
           fi
 
+          echo "branch_type=$branch_type" >> $GITHUB_ENV
+
+      # Determine the next version based on the branch type
+      - name: Increment version
+        id: increment_version
+        run: |
+          IFS='.' read -r major minor patch <<< "${{ env.latest_tag }}"
+
+          if [[ "${{ env.branch_type }}" == "release" ]]; then
+            minor=$((minor + 1))  # Increment minor version for release
+            new_tag="$major.$minor.0"
+          elif [[ "${{ env.branch_type }}" == "hotfix" ]]; then
+            patch=$((patch + 1))  # Increment patch version for hotfix
+            new_tag="$major.$minor.$patch"
+          else
+            echo "Unknown branch type"
+            exit 1
+          fi
+
           echo "new_tag=$new_tag" >> $GITHUB_ENV
 
-      # Tag the new version and create a release
+      # Create the new tag and GitHub release
       - name: Tag the new version
         run: |
           gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes ""
