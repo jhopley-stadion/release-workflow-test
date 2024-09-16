@@ -3,12 +3,10 @@ name: Create Release
 on:
   push:
     branches:
-      # Trigger on push to main
-      - main  
+      - main  # Trigger on push to main
 
 permissions:
-  # Allow the workflow to push tags and create releases
-  contents: write  
+  contents: write  # Allow the workflow to push tags, rebase, and create releases
 
 jobs:
   create-release:
@@ -20,6 +18,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history to ensure rebase works correctly
 
       # Get the latest release tag or use "1.0.0" if none exist
       - name: Get latest version
@@ -84,3 +84,14 @@ jobs:
         run: |
           release_notes=$(cat ${{ env.release_notes_file }})
           gh release edit ${{ env.new_tag }} --notes "$release_notes"
+
+      # Rebase develop with main (only for hotfixes)
+      - name: Rebase develop with main for hotfixes
+        if: env.branch_type == 'hotfix'  # Only do this for hotfixes
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git fetch origin develop
+          git checkout develop
+          git rebase origin/main
+          git push origin develop --force-with-lease  # Use --force-with-lease to safely force push
