@@ -27,12 +27,17 @@ jobs:
           latest_tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' || echo "1.0.0")
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
 
-      - name: Get incoming branch type
+      - name: Determine Branch Type
         id: get_branch_type
         run: |
-          branch_name=$(jq -r .ref < "$GITHUB_EVENT_PATH" | sed 's|refs/heads/||')
-          echo "Incoming branch name: $branch_name"
-          
+          # Print GITHUB_REF for debugging
+          echo "GITHUB_REF=$GITHUB_REF"
+
+          # Extract branch name from GITHUB_REF
+          branch_name=${GITHUB_REF#refs/heads/}
+          echo "Branch name: $branch_name"
+
+          # Determine branch type based on branch name
           if [[ "$branch_name" == release/* ]]; then
             branch_type="release"
           elif [[ "$branch_name" == hotfix/* ]]; then
@@ -43,6 +48,7 @@ jobs:
           fi
 
           echo "branch_type=$branch_type" >> $GITHUB_ENV
+        shell: /usr/bin/bash -e {0}
 
       - name: Increment version
         id: increment_version
@@ -62,7 +68,7 @@ jobs:
 
           echo "new_tag=$new_tag" >> $GITHUB_ENV
 
-      - name: Tag the new version
+      - name: Create GitHub Release
         run: |
           gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --generate-notes --target main
 
