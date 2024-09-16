@@ -14,6 +14,7 @@ jobs:
 
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      JIRA_URL: 'https://stadion.atlassian.net/browse/'  # Update this with your JIRA URL
 
     steps:
       - name: Checkout repository
@@ -69,8 +70,15 @@ jobs:
       - name: Generate formatted release notes
         id: generate_release_notes
         run: |
-          # Get commit messages since the last release and clean up the formatting
-          release_notes=$(gh api repos/${{ github.repository }}/compare/${{ env.latest_tag }}...main --jq '.commits[].commit.message' | grep -v 'Merge pull request' | sed '/^\s*$/d' | sed 's/^/* /')
+          # Get commit messages since the last release
+          release_notes=$(gh api repos/${{ github.repository }}/compare/${{ env.latest_tag }}...main --jq '.commits[].commit.message' | grep -v 'Merge pull request' | sed '/^\s*$/d')
+
+          # Add JIRA ticket links to commit messages
+          jira_pattern='[A-Z]+-[0-9]+'  # JIRA ticket pattern (e.g., PROJ-123)
+          jira_url="${{ env.JIRA_URL }}"
+
+          # Replace JIRA ticket references with Markdown links
+          release_notes=$(echo "$release_notes" | sed -E "s/($jira_pattern)/[\1]($jira_url\1)/g" | sed 's/^/* /')
 
           # Add a title to the release notes and ensure the formatting is correct
           formatted_notes="## Commit History Since Last Release\n\n$release_notes"
