@@ -5,10 +5,10 @@ categories:
     labels:
       - breaking-change
   - title: Fixes 🐛
-  labels:
-    - bug
-    - fix
-    - defect 
+    labels:
+      - bug
+      - fix
+      - defect 
   - title: Exciting New Features 🎉
     labels:
       - feature
