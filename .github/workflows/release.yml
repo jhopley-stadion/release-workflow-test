@@ -3,7 +3,7 @@ name: Create Release
 on:
   push:
     branches:
-      - main  # Triggered on push to the main branch
+      - main  # Trigger on push to main
 
 permissions:
   contents: write  # Allow the workflow to push tags and create releases
@@ -15,6 +15,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+
+      # Set GH_TOKEN to GITHUB_TOKEN for GitHub CLI authentication
+      - name: Set up GitHub CLI authentication
+        run: echo "GH_TOKEN=$GITHUB_TOKEN" >> $GITHUB_ENV
 
       # Get the latest release tag or use "1.0.0" if none exist
       - name: Get latest version
