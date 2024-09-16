@@ -72,17 +72,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Debug Drafted Release Notes
+      - name: Wait for Release Notes to be Drafted
         run: |
-          echo "Drafted release notes:"
-          gh release view --json body --jq '.body' ${{ env.new_tag }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "Waiting for release notes to be drafted..."
+          sleep 20
 
       - name: Create Release
         run: |
           echo "Creating release..."
-          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes "$(gh release view ${{ env.new_tag }} --json body --jq '.body')"
+          notes=$(gh release view ${{ env.new_tag }} --json body --jq '.body' 2>/dev/null || echo "No notes found")
+          if [[ "$notes" == "No notes found" ]]; then
+            echo "Warning: No release notes found. Creating release with default message."
+            gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes "Release notes are not available."
+          else
+            gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes "$notes"
+          fi
           echo "Release created: ${{ env.new_tag }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
