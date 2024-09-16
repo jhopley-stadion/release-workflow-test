@@ -1,7 +1,7 @@
 name-template: 'Release {version}'
 tag-template: 'v$VERSION'
 template: |
-  ## Release Notes for {version}
+  ## Release Notes for (test) {version}
   
   **Release Date:** $RELEASE_DATE
   
