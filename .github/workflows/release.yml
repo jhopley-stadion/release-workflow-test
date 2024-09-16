@@ -71,15 +71,18 @@ jobs:
         run: |
           gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes ""
 
-      # Generate release notes from commits since the last tag
-      - name: Generate release notes
+      # Generate release notes from commits since the last tag, with formatting and cleanup
+      - name: Generate formatted release notes
         id: generate_release_notes
         run: |
-          release_notes=$(gh api repos/${{ github.repository }}/compare/${{ env.latest_tag }}...main --jq '.commits[].commit.message' | sed 's/^/* /')
-          echo "${release_notes}" > release_notes.txt
+          release_notes=$(gh api repos/${{ github.repository }}/compare/${{ env.latest_tag }}...main --jq '.commits[].commit.message' | grep -v 'Merge pull request' | sed 's/^/* /')
+          
+          # Add a title and format commit history
+          formatted_notes="## Commit History Since Last Release\n\n$release_notes"
+          echo "${formatted_notes}" > release_notes.txt
           echo "release_notes_file=release_notes.txt" >> $GITHUB_ENV
 
-      # Update GitHub Release with the generated notes
+      # Update GitHub Release with the formatted notes
       - name: Update GitHub Release with Notes
         run: |
           release_notes=$(cat ${{ env.release_notes_file }})
