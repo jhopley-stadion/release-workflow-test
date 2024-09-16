@@ -3,11 +3,10 @@ name: Create Release
 on:
   push:
     branches:
-      - main
+      - main  # Trigger on push to main
 
 permissions:
-  contents: write
-  issues: write
+  contents: write  # Allow the workflow to push tags, rebase, and create releases
 
 jobs:
   create-release:
@@ -20,23 +19,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Fetch all history to ensure rebase works correctly
 
       - name: Get latest version
         id: get_latest_version
         run: |
+          # Fetch the latest tag from the releases
           latest_tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' || echo "1.0.0")
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
-
-      - name: Get the branch being merged into main
-        id: get_branch_name
+      - name: Get branch type
+        id: get_branch_type
         run: |
-          # Get the merge commit SHA
-          merge_commit_sha=$(git log -1 --pretty=%H)
-          
-          # Find the branch name being merged into main
-          branch_name=$(git branch -r --contains "$merge_commit_sha" | grep -E 'origin/(release|hotfix)/' | sed 's/origin\///')
-          
+          # Extract branch name from the latest commit message
+          branch_name=$(jq -r .head_commit.message < "$GITHUB_EVENT_PATH" | grep -oP 'Merge pull request #[0-9]+ from \K\S+')
+          branch_name=$(echo "$branch_name" | sed 's/^[^/]*\///')
+          # Determine the branch type based on the branch name
           if [[ "$branch_name" == release/* ]]; then
             branch_type="release"
           elif [[ "$branch_name" == hotfix/* ]]; then
@@ -45,15 +42,12 @@ jobs:
             echo "Branch does not match expected patterns"
             exit 1
           fi
-
           echo "branch_type=$branch_type" >> $GITHUB_ENV
-          echo "branch_name=$branch_name" >> $GITHUB_ENV
-
       - name: Increment version
         id: increment_version
         run: |
           IFS='.' read -r major minor patch <<< "${{ env.latest_tag }}"
-
+          # Increment version based on branch type
           if [[ "${{ env.branch_type }}" == "release" ]]; then
             minor=$((minor + 1))  # Increment minor version for release
             new_tag="$major.$minor.0"
@@ -64,24 +58,27 @@ jobs:
             echo "Unknown branch type"
             exit 1
           fi
-
           echo "new_tag=$new_tag" >> $GITHUB_ENV
-
-      - name: Create the new tag and GitHub release
+      - name: Tag the new version
         run: |
-          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --generate-notes
-
-      - name: Generate release notes
+          # Create a new release tag
+          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes ""
+      - name: Generate and apply release notes
         id: generate_release_notes
         run: |
-          gh release edit ${{ env.new_tag }} --notes "Release notes generated for ${{ env.branch_name }}"
-
+          # Use GitHub CLI to generate release notes for the new tag
+          release_notes=$(gh release view ${{ env.new_tag }} --json body --jq '.body')
+          echo "release_notes=$release_notes" >> $GITHUB_ENV
+      - name: Update GitHub Release with Notes
+        run: |
+          # Update the release with generated notes
+          gh release edit ${{ env.new_tag }} --notes "$release_notes"
       - name: Rebase develop with main for hotfixes
-        if: env.branch_type == 'hotfix'
+        if: env.branch_type == 'hotfix'  # Only do this for hotfixes
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
           git fetch origin develop
           git checkout develop
           git rebase origin/main
-          git push origin develop --force-with-lease
+          git push origin develop --force-with-lease  # Use --force-with-lease to safely force push
