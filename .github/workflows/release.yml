@@ -27,10 +27,10 @@ jobs:
           latest_tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' || echo "1.0.0")
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
 
-      - name: Get branch type (based on incoming branch)
+      - name: Get branch type (for push event)
         id: get_branch_type
         run: |
-          branch_name=$(jq -r .pull_request.head.ref < "$GITHUB_EVENT_PATH")
+          branch_name=$(git log -1 --pretty=%D | grep -oE 'release/[^, ]+|hotfix/[^, ]+' | head -n 1)
           echo "Incoming branch name: $branch_name"
           
           if [[ "$branch_name" == release/* ]]; then
