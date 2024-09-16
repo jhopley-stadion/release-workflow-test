@@ -21,21 +21,18 @@ jobs:
         with:
           fetch-depth: 0  # Fetch all history to ensure rebase works correctly
 
-      # Get the latest release tag or use "1.0.0" if none exist
       - name: Get latest version
         id: get_latest_version
         run: |
           latest_tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' || echo "1.0.0")
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
 
-      # Get the current branch type (release or hotfix)
       - name: Get branch type
         id: get_branch_type
         run: |
           branch_name=$(jq -r .head_commit.message < "$GITHUB_EVENT_PATH" | grep -oP 'Merge pull request #[0-9]+ from \K\S+')
           branch_name=$(echo "$branch_name" | sed 's/^[^/]*\///')
 
-          # Identify if it's a release or hotfix branch
           if [[ "$branch_name" == release/* ]]; then
             branch_type="release"
           elif [[ "$branch_name" == hotfix/* ]]; then
@@ -47,7 +44,6 @@ jobs:
 
           echo "branch_type=$branch_type" >> $GITHUB_ENV
 
-      # Determine the next version based on the branch type
       - name: Increment version
         id: increment_version
         run: |
@@ -66,29 +62,30 @@ jobs:
 
           echo "new_tag=$new_tag" >> $GITHUB_ENV
 
-      # Create the new tag and GitHub release
       - name: Tag the new version
         run: |
           gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes ""
 
-      # Generate release notes from commits since the last tag, with formatting and cleanup
       - name: Generate formatted release notes
         id: generate_release_notes
         run: |
-          release_notes=$(gh api repos/${{ github.repository }}/compare/${{ env.latest_tag }}...main --jq '.commits[].commit.message' | grep -v 'Merge pull request' | sed 's/^/* /')
-          
-          # Add a title and format commit history
+          # Get commit messages since the last release and clean up the formatting
+          release_notes=$(gh api repos/${{ github.repository }}/compare/${{ env.latest_tag }}...main --jq '.commits[].commit.message' | grep -v 'Merge pull request' | sed '/^\s*$/d' | sed 's/^/* /')
+
+          # Add a title to the release notes and ensure the formatting is correct
           formatted_notes="## Commit History Since Last Release\n\n$release_notes"
+
+          # Ensure newlines are preserved and properly formatted for GitHub release notes
+          formatted_notes=$(echo -e "$formatted_notes")
+
           echo "${formatted_notes}" > release_notes.txt
           echo "release_notes_file=release_notes.txt" >> $GITHUB_ENV
 
-      # Update GitHub Release with the formatted notes
       - name: Update GitHub Release with Notes
         run: |
           release_notes=$(cat ${{ env.release_notes_file }})
           gh release edit ${{ env.new_tag }} --notes "$release_notes"
 
-      # Rebase develop with main (only for hotfixes)
       - name: Rebase develop with main for hotfixes
         if: env.branch_type == 'hotfix'  # Only do this for hotfixes
         run: |
