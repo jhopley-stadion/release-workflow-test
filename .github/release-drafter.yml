@@ -3,12 +3,15 @@ tag-template: 'v$VERSION'
 categories:
   - title: Breaking Changes 🛠
     labels:
-      - Semver-Major
       - breaking-change
+  - title: Fixes 🐛
+  labels:
+    - bug
+    - fix
+    - defect 
   - title: Exciting New Features 🎉
     labels:
-      - Semver-Minor
-      - enhancement
+      - feature
   - title: Other Changes
     labels:
       - "*"
