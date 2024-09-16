@@ -17,18 +17,25 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+        run: echo "Checked out repository"
 
       - name: Get latest version
         id: get_latest_version
         run: |
+          echo "Fetching latest tag..."
           latest_tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' || echo "1.0.0")
+          echo "Latest tag is: $latest_tag"
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Get branch type
         id: get_branch_type
         run: |
+          echo "Extracting branch name from commit message..."
           branch_name=$(jq -r .head_commit.message < "$GITHUB_EVENT_PATH" | grep -oP 'Merge pull request #[0-9]+ from \K\S+')
           branch_name=$(echo "$branch_name" | sed 's/^[^/]*\///')
+          echo "Branch name extracted: $branch_name"
           if [[ "$branch_name" == release/* ]]; then
             branch_type="release"
           elif [[ "$branch_name" == hotfix/* ]]; then
@@ -37,12 +44,15 @@ jobs:
             echo "Branch does not match expected patterns"
             exit 1
           fi
+          echo "Branch type determined: $branch_type"
           echo "branch_type=$branch_type" >> $GITHUB_ENV
 
       - name: Increment version
         id: increment_version
         run: |
+          echo "Incrementing version based on branch type..."
           IFS='.' read -r major minor patch <<< "${{ env.latest_tag }}"
+          echo "Current version: $major.$minor.$patch"
           if [[ "${{ env.branch_type }}" == "release" ]]; then
             minor=$((minor + 1))
             new_tag="$major.$minor.0"
@@ -53,27 +63,33 @@ jobs:
             echo "Unknown branch type"
             exit 1
           fi
+          echo "New tag calculated: $new_tag"
           echo "new_tag=$new_tag" >> $GITHUB_ENV
 
       - name: Draft Release Notes
         uses: release-drafter/release-drafter@v5
         with:
-          config-name: release-drafter.yml
+          config-name: .github/release-drafter.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "Drafting release notes"
 
       - name: Create Release
         run: |
+          echo "Creating release..."
           gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes "$(gh release view ${{ env.new_tag }} --json body --jq '.body')"
+          echo "Release created: ${{ env.new_tag }}"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Ensure GH_TOKEN is set here
-          
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Rebase develop with main for hotfixes
         if: env.branch_type == 'hotfix'
         run: |
+          echo "Rebasing develop with main..."
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
           git fetch origin develop
           git checkout develop
           git rebase origin/main
           git push origin develop --force-with-lease
+          echo "Rebase complete and pushed"
