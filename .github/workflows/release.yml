@@ -66,15 +66,14 @@ jobs:
       - name: Draft Release Notes
         uses: release-drafter/release-drafter@v5
         with:
-          config-name: release-drafter.yml
+          config-name: .github/release-drafter.yml
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Create the new tag and GitHub release with auto-generated notes
-      - name: Create Release
+      # Publish the release using GitHub CLI
+      - name: Publish Release
         run: |
-          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --generate-notes
-
+          gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --generate-notes --notes "Release notes for ${{ env.new_tag }}"
 
       - name: Rebase develop with main for hotfixes
         if: env.branch_type == 'hotfix'  # Only do this for hotfixes
