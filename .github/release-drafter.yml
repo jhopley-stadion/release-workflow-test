@@ -1,0 +1,17 @@
+name-template: 'Release {version}'
+tag-template: 'v$VERSION'
+categories:
+  - title: Breaking Changes 🛠
+    labels:
+      - breaking-change
+  - title: Fixes 🐛
+  labels:
+    - bug
+    - fix
+    - defect 
+  - title: Exciting New Features 🎉
+    labels:
+      - feature
+  - title: Other Changes
+    labels:
+      - "*"
