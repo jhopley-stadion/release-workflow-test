@@ -12,13 +12,13 @@ jobs:
   create-release:
     runs-on: ubuntu-latest
 
+    # Set GH_TOKEN to GITHUB_TOKEN for GitHub CLI authentication
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      # Set GH_TOKEN to GITHUB_TOKEN for GitHub CLI authentication
-      - name: Set up GitHub CLI authentication
-        run: echo "GH_TOKEN=$GITHUB_TOKEN" >> $GITHUB_ENV
 
       # Get the latest release tag or use "1.0.0" if none exist
       - name: Get latest version
