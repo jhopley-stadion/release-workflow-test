@@ -1,27 +1,27 @@
-name-template: 'Release {version}'
-tag-template: 'v{version}'
+name-template: 'Release ${{version}}'
+tag-template: 'v${{version}}'
 template: |
-  ## Release Notes for {version}
+  ## Release Notes for ${{version}}
   
-  **Release Date:** {date}
+  **Release Date:** ${{date}}
   
   ### 🛠 Breaking Changes
-  {changes-breaking}
+  ${{changes-breaking}}
   
   ### 🎉 New Features
-  {changes-features}
+  ${{changes-features}}
   
   ### 🐛 Fixes
-  {changes-fixes}
+  ${{changes-fixes}}
   
   ### 🔄 Improvements
-  {changes-improvements}
+  ${{changes-improvements}}
   
   ### 📜 Other Changes
-  {changes-other}
+  ${{changes-other}}
   
   ### 🙏 Thanks to Contributors
-  {contributor-list}
+  ${{contributor-list}}
 
 categories:
   - title: Breaking Changes 🛠
