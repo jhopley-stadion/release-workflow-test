@@ -87,6 +87,9 @@ jobs:
           echo "Creating release..."
           gh release create ${{ env.new_tag }} --title "Release ${{ env.new_tag }}" --target main --notes "${{ env.draft_notes }}"
           echo "Release created: ${{ env.new_tag }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # <-- Ensure this is passed here
+      
 
       - name: Rebase develop with main for hotfixes
         if: env.branch_type == 'hotfix'
