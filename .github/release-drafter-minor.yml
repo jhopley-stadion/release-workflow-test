@@ -1,40 +1,39 @@
-name-template: 'Release ${{version}}'
-tag-template: 'v${{version}}'
+name-template: 'Release {version}'
+tag-template: '$NEXT_MINOR_VERSION'
 template: |
-  ## Release Notes for ${{version}}
+  ## Minor Release Notes for {version}
   
-  **Release Date:** ${{date}}
+  **Release Date:** $RELEASE_DATE
   
   ### 🛠 Breaking Changes
-  ${{changes-breaking}}
+  $BREAKING_CHANGES
   
   ### 🎉 New Features
-  ${{changes-features}}
+  $FEATURES
   
   ### 🐛 Fixes
-  ${{changes-fixes}}
+  $FIXES
   
   ### 🔄 Improvements
-  ${{changes-improvements}}
+  $IMPROVEMENTS
   
   ### 📜 Other Changes
-  ${{changes-other}}
+  $OTHER_CHANGES
   
   ### 🙏 Thanks to Contributors
-  ${{contributor-list}}
+  $CONTRIBUTORS
 
 categories:
   - title: Breaking Changes 🛠
     labels:
       - breaking-change
+  - title: New Features 🎉
+    labels:
+      - feature
   - title: Fixes 🐛
     labels:
       - bug
       - fix
-      - defect
-  - title: Exciting New Features 🎉
-    labels:
-      - feature
   - title: Other Changes
     labels:
       - "*"
